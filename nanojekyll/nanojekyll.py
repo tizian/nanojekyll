@@ -164,18 +164,17 @@ def build_site(verbose):
         print("* Page built!")
     return True
 
-
-if __name__ == "__main__":
-
-    help_text = """usage: nanojekyll.py [command]
+help_text = """\
+usage: nanojekyll.py [command]
 
 A minimal static site generator. Certified free from Ruby.
 
 commands:
     build    Build the site once.
     serve    Run a local server and continuously rebuild the site.
-    """
+"""
 
+def main():
     if len(sys.argv) <= 1:
         print(help_text)
         sys.exit(0)
@@ -186,13 +185,11 @@ commands:
 
     if sys.argv[1] == "build":
         # Build the site once.
-
         success = build_site(verbose=True)
         sys.exit(0 if success else 1)
 
     elif sys.argv[1] == "serve":
         # Run a local server and continuously rebuild the site.
-
         from http.server import HTTPServer, SimpleHTTPRequestHandler
         from functools import partial
 
@@ -201,8 +198,11 @@ commands:
                 build_site(verbose=False)
                 return super().parse_request(*args, **kwargs)
 
-        print("Running local server at http://localhost:8000 ...")
+        print("Running local server at http://localhost:8000 ... press ctrl-c to stop.")
 
         handler = partial(RebuildHTTPRequestHandle, directory=SITE_PATH)
         httpd = HTTPServer(('localhost', 8000), handler)
         httpd.serve_forever()
+
+if __name__ == "__main__":
+    main()
