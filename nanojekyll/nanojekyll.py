@@ -1,6 +1,6 @@
-import os, shutil, yaml, sys
+import os, shutil, yaml, sys, time
 from pathlib import Path
-from liquid import Liquid, defaults
+from liquid import Liquid
 
 BASE_PATH     = Path.cwd()
 CONFIG_PATH   = BASE_PATH/'_config.yml'
@@ -30,8 +30,9 @@ def process_html(state, site_path, path, is_base_file, verbose):
 
     # Build liquid parameter dict.
     liquid_params = {
-        'site': state["config"],
+        "site": state["config"],
     }
+    liquid_params["site"]["time"] = time.time()
     liquid_params["page"] = state["config"] if is_base_file else header
     for key, value in state["includes"].items():
         liquid_params[key] = value
@@ -41,14 +42,14 @@ def process_html(state, site_path, path, is_base_file, verbose):
     # Process main content of file.
     if not content.isspace():
         liq = Liquid(content, from_file=False)
-        content = liq.render(liquid_params)
+        content = liq.render(liquid_params, mode="jekyll")
         liquid_params["content"] = content
 
         # Find the right layout file.
         if "layout" not in header:
             raise Exception(f"Error: Header of \"{path}\" did not contain \"layout\" tag.")
         liq = Liquid(state["layouts"][header["layout"]])
-        output = liq.render(liquid_params)
+        output = liq.render(liquid_params, mode="jekyll")
 
         # Assemble the output path.
         outpath = None
