@@ -132,10 +132,11 @@ def build_site(verbose):
     files = []
     for item in config["files"]:
         if type(item) == str:
-            # File in root directory.
+            # This item must be a file directly inside the root directory.
+
             header, content = read_file(BASE_PATH/item)
             if header.get("hidden", False):
-                continue # Skip if specified.
+                continue # File should be skipped.
 
             # Add to list of files to process.
             files.append({
@@ -145,15 +146,20 @@ def build_site(verbose):
                 "content": content
             })
         else:
-            # Directory of files.
+            # This item is a directory that potentially contains many files.
             dirname = list(item.keys())[0]
-            site[dirname] = []
-            for nested_item in item[dirname]:
-                # File in directory.
-                name = dirname + "/" + nested_item
+            site[dirname] = [] # Ordered list of specified files.
+            unique_dict = {}   # To check that there will be no duplicates.
+
+            def add_file(item):
+                name = dirname + "/" + item
+                if name in unique_dict:
+                    return # Skip duplicates.
+                unique_dict[name] = True
+
                 header, content = read_file(BASE_PATH/("_" + name))
                 if header.get("hidden", False):
-                    continue # Skip if specified.
+                    return # File should be skipped.
 
                 # Add to list of files to process.
                 files.append({
@@ -166,6 +172,19 @@ def build_site(verbose):
                 # Add header to `site` dictionary for other pages to access
                 # through liquid.
                 site[dirname].append(header)
+
+            # Check all specified files.
+            for nested_item in item[dirname]:
+                if nested_item == "*.html" or nested_item == "*.md":
+                    # Wildcard special case. Add all files with right suffix.
+                    suffix = "." + nested_item.split(".")[-1]
+                    for item in os.listdir("_" + dirname):
+                        path = Path("_" + dirname)/item
+                        if path.suffix == suffix:
+                            add_file(path.name)
+                else:
+                    # Normally, just add the specified file.
+                    add_file(nested_item)
 
     # Now do a second pass that actually processes everything.
     if verbose:
