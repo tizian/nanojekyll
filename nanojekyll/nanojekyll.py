@@ -214,8 +214,13 @@ def main():
 
         class RebuildHTTPRequestHandle(SimpleHTTPRequestHandler):
             def parse_request(self, *args, **kwargs):
-                build_site(verbose=False)
-                return super().parse_request(*args, **kwargs)
+                ret = super().parse_request(*args, **kwargs)
+                suffix = Path(self.path).suffix
+                if suffix == ".html" or suffix == "":
+                    print("nanojekyll rebuild ...", end='')
+                    build_site(verbose=False)
+                    print(" done.")
+                return ret
 
         print("Running local server at http://localhost:8000 ... press ctrl-c to stop.")
 
