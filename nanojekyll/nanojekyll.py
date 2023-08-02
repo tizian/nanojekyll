@@ -1,4 +1,4 @@
-import os, shutil, yaml, sys, time
+import os, shutil, sys, time, yaml
 from pathlib import Path
 from liquid import Liquid
 
@@ -9,65 +9,67 @@ INCLUDES_PATH = BASE_PATH/"_includes"
 LAYOUTS_PATH  = BASE_PATH/"_layouts"
 CONTENT_PATH  = BASE_PATH/"_content"
 
-def process_html(state, site_path, path, is_base_file, verbose):
-    if verbose:
-        if is_base_file:
-            print("  - ", path)
-        else:
-            print("  - ", path)
+HELP_TEXT = """\
+usage: nanojekyll.py [command]
 
+A minimal static site generator. Certified free from Ruby.
+
+commands:
+    build    Build the site once.
+    serve    Run a local server and continuously rebuild the site.
+"""
+
+def read_file(path):
     # Read in file.
-    f = open(path)
-    content = f.read()
-    f.close()
+    if path.suffix != ".html":
+        raise Exception("nanojekyll can only process .html files.")
+    with open(path) as f:
+        content = f.read()
 
     # Extract and parse YAML header surrounded by "---".
     delim = "---"
     a = content.find(delim)
     b = content.find(delim, a + len(delim))
     header = yaml.safe_load(content[a + len(delim):b])
-    content = content[b + len(delim):] # File content without the YAML header.
+
+    # The remainder is the main content.
+    content = content[b + len(delim):]
+
+    return header, content
+
+def process_file(state, site, file):
+    if file["content"].isspace():
+        return # Skip files that only have a header.
 
     # Build liquid parameter dict.
     liquid_params = {
-        "site": state["config"],
+        "site": site,
+        "page": file["header"]
     }
-    liquid_params["site"]["time"] = time.time()
-    liquid_params["page"] = state["config"] if is_base_file else header
     for key, value in state["includes"].items():
         liquid_params[key] = value
-    if is_base_file:
-        liquid_params['site']['content'] = state['content']
 
-    # Process main content of file.
-    if not content.isspace():
-        liq = Liquid(content, from_file=False)
-        content = liq.render(liquid_params, mode="jekyll")
-        liquid_params["content"] = content
+    # First liquid pass: process content itself.
+    liq = Liquid(file["content"], from_file=False)
+    output = liq.render(liquid_params, mode="jekyll")
 
-        # Find the right layout file.
-        if "layout" not in header:
-            raise Exception(f"Error: Header of \"{path}\" did not contain \"layout\" tag.")
-        liq = Liquid(state["layouts"][header["layout"]])
+    # Second liquid pass: insert content into a layout, if specified.
+    if "layout" in file["header"]:
+        liquid_params["content"] = output
+        liq = Liquid(state["layouts"][file["header"]["layout"]])
         output = liq.render(liquid_params, mode="jekyll")
 
-        # Assemble the output path.
-        outpath = None
-        if is_base_file:
-            outpath = site_path/path
-        else:
-            # Get requested path from file.
-            if "url" not in header:
-                raise Exception(f"Error: Header of \"{path}\" did not contain \"url\" tag.")
-            outpath = site_path/header["url"]
-            os.makedirs(outpath, exist_ok=True)
-            outpath = outpath/"index.html"
+    # Assemble the output path.
+    outpath = state["site_path"]/file["path"]
+    if "path" in file["header"]:
+        # Override specified in file header.
+        outpath = state["site_path"]/file["header"]["path"]
+        os.makedirs(outpath, exist_ok=True)
+        outpath = outpath/"index.html"
 
-        # And finally write file to the right place.
-        with open(outpath, "w") as f:
-            f.write(output)
-
-    return header
+    # And finally write file to the right place.
+    with open(outpath, "w") as f:
+        f.write(output)
 
 def build_site(verbose):
     os.makedirs(SITE_PATH,     exist_ok=True)
@@ -78,29 +80,39 @@ def build_site(verbose):
         print("No nanojekyll site found. Create an empty config file.")
         open(CONFIG_PATH, 'a').close()
 
-    state = {}
+    site  = {}  # Dict that keeps parameters accessible through liquid.
+    state = {}  # Dict for keeping internal data such as includes/layouts.
+    state["base_path"]     = BASE_PATH
+    state["site_path"]     = SITE_PATH
+    state["includes_path"] = INCLUDES_PATH
+    state["layouts_path"]  = LAYOUTS_PATH
+    state["content_path"]  = CONTENT_PATH
 
-    # Parse `_config.yml` file from disk.
+    # Add `_config.yml` contents to the `site` dictionary.
     with open(CONFIG_PATH) as f:
         config = f.read()
         config = yaml.safe_load(config)
-        state["config"] = config
+        site = config
+
+    # Also provide additional parameters.
+    site["time"] = time.time() # Unix timestamp.
 
     # Get all paths from `_includes` and `_layouts` for later use.
     state["includes"] = {}
     for item in os.listdir(INCLUDES_PATH):
         path = Path(INCLUDES_PATH/item)
-        state["includes"][path.stem] = { 'html': str(path) }
+        state["includes"][path.stem] = { "html": str(path) }
 
     state["layouts"] = {}
     for item in os.listdir(LAYOUTS_PATH):
         path = Path(LAYOUTS_PATH/item)
         state["layouts"][path.stem] = str(path)
 
-    # Copy over everything (non-nanojekyll related) to the `_site` output directory.
+    # Copy over everything to the `_site` output directory.
     for item in os.listdir(BASE_PATH):
         path = Path(BASE_PATH/item)
         if path.name[0] == "_":
+            # Skip nanojekyll specific items inside the root directory.
             continue
 
         if path.is_dir():
@@ -108,87 +120,67 @@ def build_site(verbose):
         elif path.is_file():
             shutil.copy(path, SITE_PATH/path.name)
 
-    # Process content files.
+    # Do a first pass through all files specified in `_config.yml` to parse
+    # their YAML headers and populate the `site` dictionary.
+    files = []
+    for item in config["files"]:
+        if type(item) == str:
+            # File in root directory.
+            header, content = read_file(BASE_PATH/item)
+            if header.get("hidden", False):
+                continue # Skip if specified.
+
+            # Add to list of files to process.
+            files.append({
+                "name": item,
+                "path": item,
+                "header": header,
+                "content": content
+            })
+        else:
+            # Directory of files.
+            dirname = list(item.keys())[0]
+            site[dirname] = []
+            for nested_item in item[dirname]:
+                # File in directory.
+                name = dirname + "/" + nested_item
+                header, content = read_file(BASE_PATH/("_" + name))
+                if header.get("hidden", False):
+                    continue # Skip if specified.
+
+                # Add to list of files to process.
+                files.append({
+                    "name": name,
+                    "path": name,
+                    "header": header,
+                    "content": content
+                })
+
+                # Add header to `site` dictionary for other pages to access
+                # through liquid.
+                site[dirname].append(header)
+
+    # Now do a second pass that actually processes everything.
     if verbose:
-        print("* Process content files ...")
-    content = {}
-    for p in Path(CONTENT_PATH).rglob("*"):
-        if not p.is_file() or p.suffix != ".html": # Only look at files.
-            continue
-
-        # Only keep parts of the path between `_content` and the filename.
-        parts = p.parts
-        idx = 0
-        for part in parts:
-            if part == "_content":
-                break
-            idx += 1
-        middle = parts[idx + 1 : -1]
-        filename = parts[-1]
-
-        # Insert middle parts into the `state` dict.
-        cur = content
-        for i, part in enumerate(middle):
-            if part not in cur:
-                if i < len(middle) - 1:
-                    # Intermediate directories are going to be to keys.
-                    cur[part] = {}
-                else:
-                    # The last directory is going to be a list.
-                    cur[part] = []
-            cur = cur[part]
-
-        # Process the actual file.
-        header = process_html(state, SITE_PATH, p, is_base_file=False, verbose=verbose)
-
-        # Insert at the right position based on specified index.
-        if "idx" not in header:
-            raise Exception(f"Error: Header of \"{p}\" did not contain \"idx\" tag.")
-        idx = 0
-        for idx in range(len(cur)-1, -1, -1):
-            if cur[idx]["idx"] > header["idx"]:
-                idx += 1
-                break
-        cur.insert(idx, header)
-
-
-    state["content"] = content
-
-    # Process main files specified in config, e.g. `index.html` in the root.
-    if "base_files" in state["config"]:
+        print("* Process files ...")
+    for file in files:
         if verbose:
-            print("* Process base files ...")
-        for p in state["config"]["base_files"]:
-            process_html(state, SITE_PATH, p, is_base_file=True, verbose=verbose)
+            print("  -", file["name"])
+        process_file(state, site, file)
 
     if verbose:
         print("* Page built!")
     return True
 
-help_text = """\
-usage: nanojekyll.py [command]
-
-A minimal static site generator. Certified free from Ruby.
-
-commands:
-    build    Build the site once.
-    serve    Run a local server and continuously rebuild the site.
-"""
-
 def main():
-    if len(sys.argv) <= 1:
-        print(help_text)
-        sys.exit(0)
-
-    if len(sys.argv) > 2:
-        print(help_text)
-        sys.exit(1)
+    if len(sys.argv) <= 1 or len(sys.argv) > 2:
+        print(HELP_TEXT)
+        sys.exit(len(sys.argv) != 1)
 
     if sys.argv[1] == "build":
         # Build the site once.
         success = build_site(verbose=True)
         sys.exit(0 if success else 1)
-
     elif sys.argv[1] == "serve":
         # Run a local server and continuously rebuild the site.
         from http.server import HTTPServer, SimpleHTTPRequestHandler
