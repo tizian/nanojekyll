@@ -7,7 +7,8 @@ setup(
     author='Tizian Zeltner',
     packages=find_packages(include=['nanojekyll', 'nanojekyll.*']),
     install_requires=[
-        'liquidpy'
+        'liquidpy',
+        'markdown'
     ],
     entry_points={
         'console_scripts': ['nanojekyll=nanojekyll.nanojekyll:main']

@@ -1,4 +1,4 @@
-import os, shutil, sys, time, yaml
+import markdown, os, shutil, sys, time, yaml
 from pathlib import Path
 from liquid import Liquid
 
@@ -20,9 +20,10 @@ commands:
 """
 
 def read_file(path):
+    if path.suffix != ".html" and path.suffix != ".md":
+        raise Exception("nanojekyll can only process .html or .md files.")
+
     # Read in file.
-    if path.suffix != ".html":
-        raise Exception("nanojekyll can only process .html files.")
     with open(path) as f:
         content = f.read()
 
@@ -34,6 +35,11 @@ def read_file(path):
 
     # The remainder is the main content.
     content = content[b + len(delim):]
+
+    # If necessary, convert markdown into html.
+    if path.suffix == ".md":
+        content = markdown.markdown(content, extensions=['extra'])
+        print(content)
 
     return header, content
 
@@ -65,7 +71,8 @@ def process_file(state, site, file):
         # Override specified in file header.
         outpath = state["site_path"]/file["header"]["path"]
         os.makedirs(outpath, exist_ok=True)
-        outpath = outpath/"index.html"
+        outpath = outpath/"index"
+    outpath = outpath.with_suffix(".html")
 
     # And finally write file to the right place.
     with open(outpath, "w") as f:
@@ -133,7 +140,7 @@ def build_site(verbose):
             # Add to list of files to process.
             files.append({
                 "name": item,
-                "path": item,
+                "path": Path(item).with_suffix(""),
                 "header": header,
                 "content": content
             })
@@ -151,7 +158,7 @@ def build_site(verbose):
                 # Add to list of files to process.
                 files.append({
                     "name": name,
-                    "path": name,
+                    "path": Path(name).with_suffix(""),
                     "header": header,
                     "content": content
                 })
