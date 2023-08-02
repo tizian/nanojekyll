@@ -118,14 +118,24 @@ def build_site(verbose):
     # Copy over everything to the `_site` output directory.
     for item in os.listdir(BASE_PATH):
         path = Path(BASE_PATH/item)
-        if path.name[0] == "_":
-            # Skip nanojekyll specific items inside the root directory.
-            continue
 
-        if path.is_dir():
-            shutil.copytree(path, SITE_PATH/path.name, dirs_exist_ok=True)
-        elif path.is_file():
-            shutil.copy(path, SITE_PATH/path.name)
+        def copy(src, dst):
+            if src.is_dir():
+                shutil.copytree(src, dst, dirs_exist_ok=True)
+            elif src.is_file():
+                shutil.copy(src, dst)
+
+        if path.is_dir() and path.name == "_root":
+            # Root directory special case, copy over contents to `_site/`.
+            for nested_item in os.listdir(path):
+                nested_path = Path(path/nested_item)
+                copy(nested_path, SITE_PATH/nested_path.name)
+        elif path.name[0] == "_":
+            # Skip other nanojekyll specific items inside the root directory.
+            continue
+        else:
+            # Otherwise, copy item over.
+            copy(path, SITE_PATH/path.name)
 
     # Do a first pass through all files specified in `_config.yml` to parse
     # their YAML headers and populate the `site` dictionary.
