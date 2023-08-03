@@ -3,11 +3,10 @@ from pathlib import Path
 from liquid import Liquid
 
 BASE_PATH     = Path.cwd()
-CONFIG_PATH   = BASE_PATH/'_config.yml'
+CONFIG_PATH   = BASE_PATH/"_config.yml"
 SITE_PATH     = BASE_PATH/"_site"
 INCLUDES_PATH = BASE_PATH/"_includes"
 LAYOUTS_PATH  = BASE_PATH/"_layouts"
-CONTENT_PATH  = BASE_PATH/"_content"
 
 HELP_TEXT = """\
 usage: nanojekyll.py [command]
@@ -15,9 +14,35 @@ usage: nanojekyll.py [command]
 A minimal static site generator. Certified free from Ruby.
 
 commands:
-    build    Build the site once.
+    new      Create a new site.
+    build    Build the site.
     serve    Run a local server and continuously rebuild the site.
 """
+
+DUMMY_HTML = """\
+<html>
+  <head></head>
+  <body><h1>Hello world!</h1></body>
+</html>
+"""
+
+def new_site():
+    if os.path.exists(CONFIG_PATH):
+        print("nanojekyll site already exists at this location.")
+        return False
+
+    os.makedirs(SITE_PATH,     exist_ok=True)
+    os.makedirs(INCLUDES_PATH, exist_ok=True)
+    os.makedirs(LAYOUTS_PATH,  exist_ok=True)
+
+    with open(CONFIG_PATH, "a") as f:
+        f.write("title: \"nanojekyll site\"\n\nfiles: []\n")
+
+    if not os.path.exists(BASE_PATH/"index.html"):
+        with open(BASE_PATH/"index.html", "a") as f:
+            f.write(DUMMY_HTML)
+
+    return True
 
 def read_file(path):
     if path.suffix != ".html" and path.suffix != ".md":
@@ -38,7 +63,7 @@ def read_file(path):
 
     # If necessary, convert markdown into html.
     if path.suffix == ".md":
-        content = markdown.markdown(content, extensions=['extra'])
+        content = markdown.markdown(content)
         print(content)
 
     return header, content
@@ -82,10 +107,9 @@ def build_site(verbose):
     os.makedirs(SITE_PATH,     exist_ok=True)
     os.makedirs(INCLUDES_PATH, exist_ok=True)
     os.makedirs(LAYOUTS_PATH,  exist_ok=True)
-    os.makedirs(CONTENT_PATH,  exist_ok=True)
     if not os.path.exists(CONFIG_PATH):
-        print("No nanojekyll site found. Create an empty config file.")
-        open(CONFIG_PATH, 'a').close()
+        print("No nanojekyll site found at this location.\nCreate one by running `nanojekyll new` instead.")
+        return False
 
     site  = {}  # Dict that keeps parameters accessible through liquid.
     state = {}  # Dict for keeping internal data such as includes/layouts.
@@ -93,7 +117,6 @@ def build_site(verbose):
     state["site_path"]     = SITE_PATH
     state["includes_path"] = INCLUDES_PATH
     state["layouts_path"]  = LAYOUTS_PATH
-    state["content_path"]  = CONTENT_PATH
 
     # Add `_config.yml` contents to the `site` dictionary.
     with open(CONFIG_PATH) as f:
@@ -213,6 +236,10 @@ def main():
         print(HELP_TEXT)
         sys.exit(len(sys.argv) != 1)
 
+    if sys.argv[1] == "new":
+        # Create an empty nanojekyll site.
+        success = new_site()
+        sys.exit(0 if success else 1)
     if sys.argv[1] == "build":
         # Build the site once.
         success = build_site(verbose=True)
@@ -227,7 +254,7 @@ def main():
                 ret = super().parse_request(*args, **kwargs)
                 suffix = Path(self.path).suffix
                 if suffix == ".html" or suffix == "":
-                    print("nanojekyll rebuild ...", end='')
+                    print("nanojekyll rebuild ...", end="")
                     build_site(verbose=False)
                     print(" done.")
                 return ret
@@ -235,7 +262,7 @@ def main():
         print("Running local server at http://localhost:8000 ... press ctrl-c to stop.")
 
         handler = partial(RebuildHTTPRequestHandle, directory=SITE_PATH)
-        httpd = HTTPServer(('localhost', 8000), handler)
+        httpd = HTTPServer(("localhost", 8000), handler)
         httpd.serve_forever()
 
 if __name__ == "__main__":

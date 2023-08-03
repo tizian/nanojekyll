@@ -8,7 +8,8 @@ setup(
     packages=find_packages(include=['nanojekyll', 'nanojekyll.*']),
     install_requires=[
         'liquidpy',
-        'markdown'
+        'markdown',
+        'pyyaml'
     ],
     entry_points={
         'console_scripts': ['nanojekyll=nanojekyll.nanojekyll:main']
