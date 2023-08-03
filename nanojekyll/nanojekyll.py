@@ -69,8 +69,8 @@ def read_file(path):
     return header, content
 
 def process_file(state, site, file):
-    if file["content"].isspace():
-        return # Skip files that only have a header.
+    if not file["header"].get("create_page", True):
+        return # Skip files that should not be processed.
 
     # Build liquid parameter dict.
     liquid_params = {
@@ -91,12 +91,16 @@ def process_file(state, site, file):
         output = liq.render(liquid_params, mode="jekyll")
 
     # Assemble the output path.
-    outpath = state["site_path"]/file["path"]
     if "path" in file["header"]:
         # Override specified in file header.
         outpath = state["site_path"]/file["header"]["path"]
-        os.makedirs(outpath, exist_ok=True)
         outpath = outpath/"index"
+    else:
+        outpath = (state["site_path"]/file["path"])
+        if "index" not in str(outpath):
+            outpath = outpath/"index"
+
+    os.makedirs(outpath.parent, exist_ok=True)
     outpath = outpath.with_suffix(".html")
 
     # And finally write file to the right place.
@@ -104,12 +108,12 @@ def process_file(state, site, file):
         f.write(output)
 
 def build_site(verbose):
-    os.makedirs(SITE_PATH,     exist_ok=True)
-    os.makedirs(INCLUDES_PATH, exist_ok=True)
-    os.makedirs(LAYOUTS_PATH,  exist_ok=True)
     if not os.path.exists(CONFIG_PATH):
         print("No nanojekyll site found at this location.\nCreate one by running `nanojekyll new` instead.")
         return False
+    os.makedirs(SITE_PATH,     exist_ok=True)
+    os.makedirs(INCLUDES_PATH, exist_ok=True)
+    os.makedirs(LAYOUTS_PATH,  exist_ok=True)
 
     site  = {}  # Dict that keeps parameters accessible through liquid.
     state = {}  # Dict for keeping internal data such as includes/layouts.
@@ -168,7 +172,7 @@ def build_site(verbose):
             # This item must be a file directly inside the root directory.
 
             header, content = read_file(BASE_PATH/item)
-            if header.get("hidden", False):
+            if not header.get("process_file", True):
                 continue # File should be skipped.
 
             # Add to list of files to process.
@@ -191,7 +195,7 @@ def build_site(verbose):
                 unique_dict[name] = True
 
                 header, content = read_file(BASE_PATH/("_" + name))
-                if header.get("hidden", False):
+                if not header.get("process_file", True):
                     return # File should be skipped.
 
                 # Add to list of files to process.
