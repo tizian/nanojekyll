@@ -7,6 +7,7 @@ CONFIG_PATH   = BASE_PATH/"_config.yml"
 SITE_PATH     = BASE_PATH/"_site"
 INCLUDES_PATH = BASE_PATH/"_includes"
 LAYOUTS_PATH  = BASE_PATH/"_layouts"
+ROOT_PATH     = BASE_PATH/"_root"
 
 HELP_TEXT = """\
 usage: nanojekyll.py [command]
@@ -26,14 +27,18 @@ DUMMY_HTML = """\
 </html>
 """
 
+def create_paths():
+    os.makedirs(SITE_PATH,     exist_ok=True)
+    os.makedirs(INCLUDES_PATH, exist_ok=True)
+    os.makedirs(LAYOUTS_PATH,  exist_ok=True)
+    os.makedirs(ROOT_PATH,     exist_ok=True)
+
 def new_site():
     if os.path.exists(CONFIG_PATH):
         print("nanojekyll site already exists at this location.")
         return False
 
-    os.makedirs(SITE_PATH,     exist_ok=True)
-    os.makedirs(INCLUDES_PATH, exist_ok=True)
-    os.makedirs(LAYOUTS_PATH,  exist_ok=True)
+    create_paths()
 
     with open(CONFIG_PATH, "a") as f:
         f.write("title: \"nanojekyll site\"\n\nfiles: []\n")
@@ -64,7 +69,6 @@ def read_file(path):
     # If necessary, convert markdown into html.
     if path.suffix == ".md":
         content = markdown.markdown(content)
-        print(content)
 
     return header, content
 
@@ -111,9 +115,8 @@ def build_site(verbose):
     if not os.path.exists(CONFIG_PATH):
         print("No nanojekyll site found at this location.\nCreate one by running `nanojekyll new` instead.")
         return False
-    os.makedirs(SITE_PATH,     exist_ok=True)
-    os.makedirs(INCLUDES_PATH, exist_ok=True)
-    os.makedirs(LAYOUTS_PATH,  exist_ok=True)
+
+    create_paths()
 
     site  = {}  # Dict that keeps parameters accessible through liquid.
     state = {}  # Dict for keeping internal data such as includes/layouts.
@@ -152,7 +155,7 @@ def build_site(verbose):
             elif src.is_file():
                 shutil.copy(src, dst)
 
-        if path.is_dir() and path.name == "_root":
+        if path.is_dir() and path == ROOT_PATH:
             # Root directory special case, copy over contents to `_site/`.
             for nested_item in os.listdir(path):
                 nested_path = Path(path/nested_item)
