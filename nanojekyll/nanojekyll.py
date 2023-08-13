@@ -20,10 +20,17 @@ commands:
     serve    Run a local server and continuously rebuild the site.
 """
 
-DUMMY_HTML = """\
+NEW_CONFIG_STR = """\
+title: "nanojekyll site"
+
+files:
+    - "index.html"
+"""
+
+NEW_HTML_STR = """\
 <html>
   <head></head>
-  <body><h1>Hello world!</h1></body>
+  <body><h1>{{ site.title }}</h1>Hello world!</body>
 </html>
 """
 
@@ -38,14 +45,14 @@ def new_site():
         print("nanojekyll site already exists at this location.")
         return False
 
-    create_paths()
-
     with open(CONFIG_PATH, "a") as f:
-        f.write("title: \"nanojekyll site\"\n\nfiles: []\n")
+        f.write(NEW_CONFIG_STR)
 
     if not os.path.exists(BASE_PATH/"index.html"):
         with open(BASE_PATH/"index.html", "a") as f:
-            f.write(DUMMY_HTML)
+            f.write(NEW_HTML_STR)
+
+    create_paths()
 
     return True
 
@@ -58,13 +65,15 @@ def read_file(path):
         content = f.read()
 
     # Extract and parse YAML header surrounded by "---".
+    header = {}
     delim = "---"
     a = content.find(delim)
-    b = content.find(delim, a + len(delim))
-    header = yaml.safe_load(content[a + len(delim):b])
+    if a >= 0:
+        b = content.find(delim, a + len(delim))
+        header = yaml.safe_load(content[a + len(delim):b])
 
-    # The remainder is the main content.
-    content = content[b + len(delim):]
+        # The remainder is the main content.
+        content = content[b + len(delim):]
 
     # If necessary, convert markdown into html.
     if path.suffix == ".md":
@@ -252,6 +261,10 @@ def main():
         success = build_site(verbose=True)
         sys.exit(0 if success else 1)
     elif sys.argv[1] == "serve":
+        # Build once explicitly, e.g. to see if there even is a site here.
+        if not build_site(verbose=True):
+            sys.exit(1)
+
         # Run a local server and continuously rebuild the site.
         from http.server import HTTPServer, SimpleHTTPRequestHandler
         from functools import partial
