@@ -155,13 +155,14 @@ def build_site(verbose):
         state["layouts"][path.stem] = str(path)
 
     # Copy over everything to the `_site` output directory.
+    excludes = [BASE_PATH/file for file in config["files"] if file != "index.html"] 
     for item in os.listdir(BASE_PATH):
         path = Path(BASE_PATH/item)
 
         def copy(src, dst):
             if src.is_dir():
                 shutil.copytree(src, dst, dirs_exist_ok=True)
-            elif src.is_file():
+            elif src.is_file() and src not in excludes:
                 shutil.copy(src, dst)
 
         if path.is_dir() and path == ROOT_PATH:
