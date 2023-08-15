@@ -249,6 +249,13 @@ def build_site(verbose):
                     # Normally, just add the specified file.
                     add_file(nested_item)
 
+    # Make sure that all files have a valid `url` property in their header.
+    for file in files:
+        if "path" in file["header"]:
+            file["header"]["url"] = file["header"]["path"]
+        else:
+            file["header"]["url"] = str(Path(file["name"]).with_suffix(""))
+
     # Now do a second pass that actually processes everything.
     if verbose:
         print("* Process files ...")
