@@ -2,6 +2,8 @@ import markdown, os, shutil, sys, time, yaml
 from pathlib import Path
 from liquid import Liquid
 
+VERSION = "0.1.0"
+
 BASE_PATH     = Path.cwd()
 CONFIG_PATH   = BASE_PATH/"_config.yml"
 SITE_PATH     = BASE_PATH/"_site"
@@ -9,10 +11,11 @@ INCLUDES_PATH = BASE_PATH/"_includes"
 LAYOUTS_PATH  = BASE_PATH/"_layouts"
 ROOT_PATH     = BASE_PATH/"_root"
 
-HELP_TEXT = """\
-usage: nanojekyll.py [command]
-
+HELP_TEXT = f"""\
+nanojekyll version {VERSION}
 A minimal static site generator. Certified free from Ruby.
+
+Usage: nanojekyll.py [command]
 
 commands:
     new      Create a new site.
