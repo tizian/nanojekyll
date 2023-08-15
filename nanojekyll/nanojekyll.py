@@ -37,6 +37,13 @@ text: "Hello World!"
 </html>
 """
 
+INVALID_SITE_STR = """\
+No nanojekyll site found at this location.
+Create one by running `nanojekyll new` instead.\
+"""
+
+SERVER_STR = """
+Running local server at http://localhost:8000 ... press ctrl-c to stop.\
 """
 
 def create_paths():
@@ -127,7 +134,7 @@ def process_file(state, site, file):
 
 def build_site(verbose):
     if not os.path.exists(CONFIG_PATH):
-        print("No nanojekyll site found at this location.\nCreate one by running `nanojekyll new` instead.")
+        print(INVALID_SITE_STR)
         return False
 
     create_paths()
@@ -285,7 +292,7 @@ def main():
                     print(" done.")
                 return ret
 
-        print("Running local server at http://localhost:8000 ... press ctrl-c to stop.")
+        print(SERVER_STR)
 
         handler = partial(RebuildHTTPRequestHandle, directory=SITE_PATH)
         httpd = HTTPServer(("localhost", 8000), handler)
