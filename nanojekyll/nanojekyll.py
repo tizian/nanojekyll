@@ -28,10 +28,15 @@ files:
 """
 
 NEW_HTML_STR = """\
+---
+text: "Hello World!"
+---
 <html>
   <head></head>
-  <body><h1>{{ site.title }}</h1>Hello world!</body>
+  <body><h1>{{ site.title }}</h1>{{ page.text }}</body>
 </html>
+"""
+
 """
 
 def create_paths():
