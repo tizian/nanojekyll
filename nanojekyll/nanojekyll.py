@@ -166,8 +166,9 @@ def build_site(verbose):
         path = Path(LAYOUTS_PATH/item)
         state["layouts"][path.stem] = str(path)
 
-    # Copy over everything to the `_site` output directory.
-    excludes = [BASE_PATH/file for file in config["files"] if file != "index.html"] 
+    # Copy over everything from the root to the `_site` output directory, except
+    # file that will be processed later.
+    excludes = [BASE_PATH/file for file in config["files"] if type(file) == str]
     for item in os.listdir(BASE_PATH):
         path = Path(BASE_PATH/item)
 
