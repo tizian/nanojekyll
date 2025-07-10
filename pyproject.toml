@@ -1,0 +1,34 @@
+[project]
+name = "nanojekyll"
+version = "0.1.0"
+description = "A minimal static site generator. Certified free from Ruby."
+authors = [{name = "Tizian Zeltner"}]
+dependencies = [
+    "liquidpy",
+    "markdown",
+    "pyyaml",
+]
+
+[tool.basedpyright]
+venvPath = "."
+venv = "venv"
+reportMissingTypeStubs = false
+
+[tool.ruff]
+line-length = 88
+extend-select = ["I"]
+fix = true
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+
+[project.scripts]
+nanojekyll = "nanojekyll.nanojekyll:main"
+
+[tool.setuptools.packages.find]
+include = ["nanojekyll*"]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
