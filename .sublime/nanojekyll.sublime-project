@@ -1,0 +1,29 @@
+{
+    "folders": [
+        {
+            "path": ".."
+        }
+    ],
+    "build_systems": [],
+    "settings": {
+        "default_encoding": "UTF-8",
+        "default_line_ending": "unix",
+        "ensure_newline_at_eof_on_save": true,
+        "trim_trailing_white_space_on_save": "all",
+        "translate_tabs_to_spaces": true,
+        "tab_size": 4,
+        "detect_indentation": false,
+        "LSP": {
+            "LSP-ruff": {
+                "enabled": true
+            },
+            "LSP-basedpyright": {
+                "enabled": true
+            }
+        },
+        "lsp_format_on_save": true,
+        "lsp_code_actions_on_save": {
+            "source.organizeImports": true
+        }
+    }
+}

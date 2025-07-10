@@ -11,8 +11,9 @@ dependencies = [
 
 [tool.basedpyright]
 venvPath = "."
-venv = "venv"
+venv = ".venv"
 reportMissingTypeStubs = false
+typeCheckingMode = "recommended"
 
 [tool.ruff]
 line-length = 88

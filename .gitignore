@@ -1,3 +1,4 @@
 .DS_Store
 nanojekyll/__pycache__
 *.egg-info
+*.sublime-workspace
